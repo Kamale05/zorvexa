@@ -1,0 +1,6 @@
+{
+  "name": "Zorvexa",
+  "description": "منصة تواصل اجتماعي حديثة وسريعة ومتجاوبة للمنشورات والمحادثات الفورية واستكشاف المحتوى الرائج.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
