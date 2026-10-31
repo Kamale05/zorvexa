@@ -37,7 +37,7 @@ export const RightSidebar: React.FC = () => {
       id="desktop-right-sidebar"
     >
       {/* Trending Topics Card */}
-      <div className="bg-white dark:bg-[#121215] rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-[#070D1E] rounded-3xl p-4 border border-slate-200 dark:border-[#1A2846] shadow-sm">
         <div className="flex items-center gap-2 mb-3 px-1 text-zinc-900 dark:text-zinc-100 font-bold text-sm">
           <TrendingUp className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
           <h3>{t('trendingNow')}</h3>
@@ -70,7 +70,7 @@ export const RightSidebar: React.FC = () => {
       </div>
 
       {/* Who To Follow Card */}
-      <div className="bg-white dark:bg-[#121215] rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-[#070D1E] rounded-3xl p-4 border border-slate-200 dark:border-[#1A2846] shadow-sm">
         <div className="flex items-center gap-2 mb-3 px-1 text-zinc-900 dark:text-zinc-100 font-bold text-sm">
           <Sparkles className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
           <h3>{t('whoToFollow')}</h3>
@@ -129,7 +129,7 @@ export const RightSidebar: React.FC = () => {
 
       {/* Active Online Friends */}
       {onlineFriends.length > 0 && (
-        <div className="bg-white dark:bg-[#121215] rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+        <div className="bg-white dark:bg-[#070D1E] rounded-3xl p-4 border border-slate-200 dark:border-[#1A2846] shadow-sm">
           <div className="flex items-center justify-between mb-3 px-1 text-zinc-900 dark:text-zinc-100 font-bold text-xs">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />

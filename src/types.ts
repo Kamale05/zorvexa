@@ -15,6 +15,7 @@ export interface User {
   joinedDate: string;
   followersCount: number;
   followingCount: number;
+  postsCount?: number;
   interests: string[];
   isVerified?: boolean;
   isOnline?: boolean;
@@ -114,4 +115,153 @@ export interface HashtagItem {
   category: 'tech' | 'design' | 'general' | 'sports' | 'gaming' | 'ai';
 }
 
-export type ActiveTab = 'feed' | 'explore' | 'messages' | 'notifications' | 'profile' | 'settings';
+export type ActiveTab =
+  | 'feed'
+  | 'explore'
+  | 'messages'
+  | 'notifications'
+  | 'profile'
+  | 'settings'
+  | 'marketplace'
+  | 'admin';
+
+// ==================== ADMIN & RBAC ====================
+export type AdminRoleType = 'owner' | 'admin' | 'moderator';
+
+export interface AdminRole {
+  uid: string;
+  email: string;
+  role: AdminRoleType;
+  createdAt: string;
+  assignedBy?: string;
+}
+
+export interface AdminLog {
+  id: string;
+  adminId: string;
+  adminName: string;
+  action: string;
+  targetType: 'user' | 'post' | 'comment' | 'promotion' | 'product' | 'settings';
+  targetId: string;
+  details: string;
+  timestamp: string;
+}
+
+export interface PlatformStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalPosts: number;
+  totalComments: number;
+  totalProducts: number;
+  totalAds: number;
+  totalPromotionRequests: number;
+  totalReports: number;
+  dailyNewUsers: number;
+  weeklyPosts: number;
+  monthlyRevenueEst: number;
+}
+
+// ==================== PROMOTIONS & ADS ====================
+export type PromotionStatus = 'pending' | 'approved' | 'rejected' | 'active' | 'paused' | 'completed';
+
+export interface PromotionRequest {
+  id: string;
+  postId: string;
+  postContent?: string;
+  postMediaUrl?: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  title: string;
+  description: string;
+  targetAudience: string;
+  targetLocation: string;
+  ageRange: string;
+  startDate: string;
+  durationDays: number;
+  budget: number;
+  objective: 'reach' | 'traffic' | 'engagement' | 'sales';
+  status: PromotionStatus;
+  rejectionReason?: string;
+  adminId?: string;
+  reviewedAt?: string;
+  impressions: number;
+  clicks: number;
+  engagement: number;
+  createdAt: string;
+}
+
+// ==================== MARKETPLACE ====================
+export type ProductCategory =
+  | 'electronics'
+  | 'vehicles'
+  | 'realestate'
+  | 'fashion'
+  | 'furniture'
+  | 'services'
+  | 'other';
+
+export type ProductCondition = 'new' | 'used';
+
+export interface MarketplaceProduct {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  sellerAvatar: string;
+  title: string;
+  description: string;
+  price: number;
+  currency: 'USD' | 'SAR' | 'AED' | 'EGP' | 'EUR';
+  images: string[];
+  category: ProductCategory;
+  condition: ProductCondition;
+  location: string;
+  contactPhone?: string;
+  contactWhatsapp?: string;
+  status: 'active' | 'sold' | 'pending' | 'rejected';
+  views: number;
+  savesCount: number;
+  isSaved?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface MarketplaceReport {
+  id: string;
+  productId: string;
+  productTitle?: string;
+  reporterId: string;
+  reporterName: string;
+  reason: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: string;
+}
+
+// ==================== WEBRTC CALLS ====================
+export type CallType = 'audio' | 'video';
+export type CallStatus = 'calling' | 'ongoing' | 'ended' | 'rejected' | 'busy' | 'missed';
+
+export interface CallSession {
+  id: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar: string;
+  receiverId: string;
+  receiverName: string;
+  receiverAvatar: string;
+  type: CallType;
+  status: CallStatus;
+  startedAt?: string;
+  endedAt?: string;
+  durationSeconds?: number;
+  createdAt: string;
+}
+
+export interface CallSignal {
+  id: string;
+  callId: string;
+  senderId: string;
+  type: 'offer' | 'answer' | 'candidate';
+  data: string; // JSON string of RTCSessionDescriptionInit or RTCIceCandidateInit
+  createdAt: string;
+}

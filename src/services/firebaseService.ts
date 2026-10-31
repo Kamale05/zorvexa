@@ -21,8 +21,23 @@ import {
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
-import { User, Post, Comment, NotificationItem, Conversation, Message } from '../types';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '../lib/firebase';
+import {
+  User,
+  Post,
+  Comment,
+  NotificationItem,
+  Conversation,
+  Message,
+  MarketplaceProduct,
+  MarketplaceReport,
+  PromotionRequest,
+  AdminRole,
+  AdminLog,
+  PlatformStats,
+} from '../types';
+
 
 // ==================== AUTH SERVICES ====================
 
@@ -242,3 +257,313 @@ export const saveConversationToDb = async (conv: Conversation): Promise<void> =>
 export const saveMessageToDb = async (msg: Message): Promise<void> => {
   await setDoc(doc(db, 'messages', msg.id), msg);
 };
+
+// ==================== STORAGE SERVICES ====================
+
+export const uploadImageToStorage = async (
+  file: File,
+  folder = 'posts',
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  const currentUserId = auth.currentUser?.uid || 'guest';
+  const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${cleanFileName}`;
+  const fileRef = ref(storage, `${folder}/${currentUserId}/${uniqueName}`);
+
+  return new Promise<string>((resolve, reject) => {
+    const uploadTask = uploadBytesResumable(fileRef, file, {
+      contentType: file.type || 'image/jpeg',
+    });
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        if (snapshot.totalBytes > 0) {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          if (onProgress) {
+            onProgress(progress);
+          }
+        }
+      },
+      (error) => {
+        console.warn('[Firebase Storage] Upload error, using high-fidelity local reader fallback:', error);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string);
+          } else {
+            reject(error);
+          }
+        };
+        reader.onerror = () => reject(error);
+        reader.readAsDataURL(file);
+      },
+      async () => {
+        try {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadUrl);
+        } catch (err) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              resolve(e.target.result as string);
+            } else {
+              reject(err);
+            }
+          };
+          reader.onerror = () => reject(err);
+          reader.readAsDataURL(file);
+        }
+      }
+    );
+  });
+};
+
+// Alias export for marketplace and other modular consumers
+export const uploadMediaFile = uploadImageToStorage;
+
+// ==================== MARKETPLACE SERVICES ====================
+
+export const saveMarketplaceProductToDb = async (product: MarketplaceProduct): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'marketplaceProducts', product.id), {
+      ...product,
+      createdAt: product.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn('[Firebase] Error saving marketplace product:', error);
+  }
+};
+
+export const deleteMarketplaceProductFromDb = async (productId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'marketplaceProducts', productId));
+  } catch (error) {
+    console.warn('[Firebase] Error deleting marketplace product:', error);
+  }
+};
+
+export const updateMarketplaceProductStatus = async (
+  productId: string,
+  status: 'active' | 'sold' | 'pending' | 'rejected'
+): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'marketplaceProducts', productId), {
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn('[Firebase] Error updating product status:', error);
+  }
+};
+
+export const saveMarketplaceReport = async (report: MarketplaceReport): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'marketplaceReports', report.id), {
+      ...report,
+      createdAt: report.createdAt || new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn('[Firebase] Error submitting marketplace report:', error);
+  }
+};
+
+export const subscribeToMarketplaceProducts = (
+  callback: (products: MarketplaceProduct[]) => void
+) => {
+  const q = query(collection(db, 'marketplaceProducts'), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const products: MarketplaceProduct[] = [];
+      snapshot.forEach((docSnap) => {
+        products.push(docSnap.data() as MarketplaceProduct);
+      });
+      callback(products);
+    },
+    (err) => {
+      console.warn('[Firebase] Error fetching marketplace products:', err);
+    }
+  );
+};
+
+// ==================== PROMOTIONS & ADS SERVICES ====================
+
+export const savePromotionRequestToDb = async (promo: PromotionRequest): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'promotionRequests', promo.id), {
+      ...promo,
+      createdAt: promo.createdAt || new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn('[Firebase] Error saving promotion request:', error);
+  }
+};
+
+export const updatePromotionStatus = async (
+  promoId: string,
+  status: PromotionRequest['status'],
+  rejectionReason?: string,
+  adminId?: string
+): Promise<void> => {
+  try {
+    const updatePayload: any = {
+      status,
+      reviewedAt: new Date().toISOString(),
+    };
+    if (rejectionReason !== undefined) updatePayload.rejectionReason = rejectionReason;
+    if (adminId) updatePayload.adminId = adminId;
+
+    await updateDoc(doc(db, 'promotionRequests', promoId), updatePayload);
+  } catch (error) {
+    console.warn('[Firebase] Error updating promotion status:', error);
+  }
+};
+
+export const incrementPromotionMetric = async (
+  promoId: string,
+  metric: 'impressions' | 'clicks' | 'engagement'
+): Promise<void> => {
+  try {
+    const promoRef = doc(db, 'promotionRequests', promoId);
+    const snap = await getDoc(promoRef);
+    if (snap.exists()) {
+      const currentVal = snap.data()[metric] || 0;
+      await updateDoc(promoRef, { [metric]: currentVal + 1 });
+    }
+  } catch (e) {
+    console.warn('[Firebase] Error incrementing promotion metric:', e);
+  }
+};
+
+export const subscribeToPromotions = (
+  callback: (promos: PromotionRequest[]) => void
+) => {
+  const q = query(collection(db, 'promotionRequests'), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items: PromotionRequest[] = [];
+      snapshot.forEach((docSnap) => {
+        items.push(docSnap.data() as PromotionRequest);
+      });
+      callback(items);
+    },
+    (err) => {
+      console.warn('[Firebase] Error listening to promotions:', err);
+    }
+  );
+};
+
+// ==================== ADMIN & RBAC SERVICES ====================
+
+// Super Admin authorized owner email (yasrepop@gmail.com)
+export const OWNER_EMAILS = ['yasrepop@gmail.com'];
+export const OWNER_EMAIL = OWNER_EMAILS[0];
+
+export const checkUserAdminRole = async (
+  uid: string,
+  email: string
+): Promise<AdminRole | null> => {
+  const currentFbUser = auth.currentUser;
+  if (!currentFbUser) return null;
+
+  // Verify that the querying caller matches the authenticated UID
+  if (currentFbUser.uid !== uid) {
+    return null;
+  }
+
+  // Retrieve fresh ID token result to check custom claims issued by Firebase Admin SDK
+  let customClaims: any = null;
+  try {
+    const tokenResult = await currentFbUser.getIdTokenResult(false);
+    customClaims = tokenResult?.claims || {};
+  } catch (err) {
+    console.warn('[Firebase Auth] Error fetching idTokenResult:', err);
+  }
+
+  const isServerSuperAdmin = customClaims?.role === 'super_admin' || customClaims?.admin === true;
+  const userEmail = (currentFbUser.email || email || '').toLowerCase();
+  const isOwnerEmail = userEmail === OWNER_EMAIL.toLowerCase();
+
+  // Strictly enforce trusted Custom Claims from Firebase Admin SDK and owner email verification.
+  // Never grant Super Admin privileges solely on unverified client-side email matches.
+  if (isServerSuperAdmin && isOwnerEmail) {
+    return {
+      uid: currentFbUser.uid,
+      email: currentFbUser.email || email || OWNER_EMAIL,
+      role: 'owner',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  try {
+    const roleDoc = await getDoc(doc(db, 'adminRoles', uid));
+    if (roleDoc.exists()) {
+      return roleDoc.data() as AdminRole;
+    }
+  } catch (e) {
+    console.warn('[Firebase] Error reading admin role:', e);
+  }
+  return null;
+};
+
+export const setAdminRole = async (
+  targetUid: string,
+  targetEmail: string,
+  role: 'admin' | 'moderator',
+  assignedByUid: string
+): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'adminRoles', targetUid), {
+      uid: targetUid,
+      email: targetEmail,
+      role,
+      assignedBy: assignedByUid,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('[Firebase] Error setting admin role:', e);
+  }
+};
+
+export const removeAdminRole = async (targetUid: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'adminRoles', targetUid));
+  } catch (e) {
+    console.warn('[Firebase] Error removing admin role:', e);
+  }
+};
+
+export const recordAdminLog = async (log: AdminLog): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'adminLogs', log.id), log);
+  } catch (e) {
+    console.warn('[Firebase] Error recording admin log:', e);
+  }
+};
+
+export const subscribeToAdminLogs = (callback: (logs: AdminLog[]) => void) => {
+  if (!auth.currentUser) {
+    return () => {};
+  }
+  try {
+    const q = query(collection(db, 'adminLogs'), orderBy('timestamp', 'desc'), limit(100));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const items: AdminLog[] = [];
+        snapshot.forEach((docSnap) => items.push(docSnap.data() as AdminLog));
+        callback(items);
+      },
+      (err) => {
+        console.warn('[Firebase] Admin logs subscription notice:', err?.message);
+      }
+    );
+  } catch (err) {
+    console.warn('[Firebase] Could not subscribe to admin logs:', err);
+    return () => {};
+  }
+};
+

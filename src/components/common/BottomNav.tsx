@@ -38,78 +38,90 @@ export const BottomNav: React.FC = () => {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 pb-safe transition-colors"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#070D1E]/95 backdrop-blur-xl border-t border-slate-200 dark:border-[#1A2846] pb-safe shadow-[0_-4px_25px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_30px_rgba(0,0,0,0.5)] transition-colors"
       id="mobile-bottom-nav"
     >
-      <div className="flex items-center justify-around h-16 px-2 max-w-lg mx-auto relative">
-        {/* Home */}
+      <div className="flex items-center justify-around h-16 px-3 max-w-lg mx-auto relative">
+        {/* Home Tab */}
         <button
           onClick={() => handleTabClick('feed')}
-          className={`flex flex-col items-center justify-center w-14 h-full relative transition-colors ${
+          className={`flex flex-col items-center justify-center w-14 h-full relative transition-all duration-200 ${
             activeTab === 'feed'
-              ? 'text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+              ? 'text-blue-600 dark:text-blue-400 font-bold scale-105'
+              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
           }`}
         >
           <Home className={`w-5 h-5 ${activeTab === 'feed' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">{t('home')}</span>
+          <span className="text-[10px] mt-0.5 tracking-tight">{t('home')}</span>
+          {activeTab === 'feed' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-pulse" />
+          )}
         </button>
 
-        {/* Explore */}
+        {/* Explore Tab */}
         <button
           onClick={() => handleTabClick('explore')}
-          className={`flex flex-col items-center justify-center w-14 h-full relative transition-colors ${
+          className={`flex flex-col items-center justify-center w-14 h-full relative transition-all duration-200 ${
             activeTab === 'explore'
-              ? 'text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+              ? 'text-blue-600 dark:text-blue-400 font-bold scale-105'
+              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
           }`}
         >
           <Compass className={`w-5 h-5 ${activeTab === 'explore' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">{t('explore')}</span>
+          <span className="text-[10px] mt-0.5 tracking-tight">{t('explore')}</span>
+          {activeTab === 'explore' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-pulse" />
+          )}
         </button>
 
-        {/* Floating Create Button */}
-        <div className="relative -top-2">
+        {/* Floating Center Create Post */}
+        <div className="relative -top-2.5">
           <button
             onClick={handleCreateClick}
-            className="w-11 h-11 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shadow-md active:scale-95 transition-transform"
+            className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center shadow-[0_6px_20px_rgba(37,99,235,0.4)] border border-sky-400/30 active:scale-95 transition-all"
             id="mobile-create-post-btn"
+            aria-label={t('create')}
           >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
+            <Plus className="w-6 h-6 stroke-[2.5]" />
           </button>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications Tab */}
         <button
           onClick={() => handleTabClick('notifications')}
-          className={`flex flex-col items-center justify-center w-14 h-full relative transition-colors ${
+          className={`flex flex-col items-center justify-center w-14 h-full relative transition-all duration-200 ${
             activeTab === 'notifications'
-              ? 'text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+              ? 'text-blue-600 dark:text-blue-400 font-bold scale-105'
+              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
           }`}
         >
           <div className="relative">
             <Bell className={`w-5 h-5 ${activeTab === 'notifications' ? 'stroke-[2.5]' : ''}`} />
             {unreadNotifsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[8px] font-bold rounded-full flex items-center justify-center">
-                {unreadNotifsCount}
+              <span className="absolute -top-1 -end-1.5 min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
               </span>
             )}
           </div>
-          <span className="text-[10px] mt-0.5">{t('notifications')}</span>
+          <span className="text-[10px] mt-0.5 tracking-tight">{t('notifications')}</span>
+          {activeTab === 'notifications' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-pulse" />
+          )}
         </button>
 
-        {/* Profile */}
+        {/* Profile Tab */}
         <button
           onClick={() => handleTabClick('profile')}
-          className={`flex flex-col items-center justify-center w-14 h-full relative transition-colors ${
+          className={`flex flex-col items-center justify-center w-14 h-full relative transition-all duration-200 ${
             activeTab === 'profile'
-              ? 'text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+              ? 'text-blue-600 dark:text-blue-400 font-bold scale-105'
+              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
           }`}
         >
           {currentUser ? (
-            <div className="w-6 h-6 rounded-md overflow-hidden border border-zinc-400 dark:border-zinc-600">
+            <div className={`w-6 h-6 rounded-lg overflow-hidden border ${
+              activeTab === 'profile' ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-zinc-300 dark:border-zinc-700'
+            }`}>
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.name}
@@ -120,7 +132,10 @@ export const BottomNav: React.FC = () => {
           ) : (
             <UserIcon className="w-5 h-5" />
           )}
-          <span className="text-[10px] mt-0.5">{t('profile')}</span>
+          <span className="text-[10px] mt-0.5 tracking-tight">{t('profile')}</span>
+          {activeTab === 'profile' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-pulse" />
+          )}
         </button>
       </div>
     </nav>

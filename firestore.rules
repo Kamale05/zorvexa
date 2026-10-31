@@ -10,23 +10,42 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.role == 'super_admin' || request.auth.token.admin == true) &&
+        request.auth.token.email == 'yasrepop@gmail.com'
+      );
+    }
+
+    function isAdminOrStaff() {
+      return isSuperAdmin() || (
+        isAuthenticated() && exists(/databases/$(database)/documents/adminRoles/$(request.auth.uid))
+      );
+    }
+
     match /users/{userId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == userId || !exists(/databases/$(database)/documents/users/$(userId)));
-      allow delete: if isOwner(userId);
+      // Regular user cannot escalate their role or unban themselves if banned
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isSuperAdmin', 'isBanned', 'banReason'])) ||
+        isAdminOrStaff() ||
+        !exists(/databases/$(database)/documents/users/$(userId))
+      );
+      allow delete: if isOwner(userId) || isSuperAdmin();
     }
 
     match /posts/{postId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdminOrStaff());
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdminOrStaff());
     }
 
     match /comments/{commentId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdminOrStaff());
     }
 
     match /likes/{likeId} {
@@ -57,6 +76,60 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Admin & Staff RBAC - strictly controlled
+    match /adminRoles/{roleId} {
+      allow read: if isAdminOrStaff() || (isAuthenticated() && request.auth.uid == roleId);
+      // Only Super Admin can write/assign/remove staff roles; no one can overwrite yasrepop
+      allow write: if isSuperAdmin();
+    }
+
+    match /adminLogs/{logId} {
+      allow read: if isAdminOrStaff();
+      // Immutable audit log: creation allowed by admin staff, no update or delete allowed
+      allow create: if isAdminOrStaff();
+      allow update, delete: if false;
+    }
+
+    // App Global Settings
+    match /systemSettings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Post Promotions & Ad Campaigns
+    match /promotionRequests/{reqId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdminOrStaff());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+
+    // Marketplace Products & Reports
+    match /marketplaceProducts/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdminOrStaff());
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdminOrStaff());
+    }
+
+    match /marketplaceReports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdminOrStaff();
+    }
+
+    // WebRTC Calls & Signaling
+    match /calls/{callId} {
+      allow read, write: if isAuthenticated();
+
+      match /signals/{signalId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    match /callSignals/{signalId} {
       allow read, write: if isAuthenticated();
     }
   }

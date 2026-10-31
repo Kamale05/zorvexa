@@ -1,0 +1,96 @@
+{
+  "id": "app.zorvexa.social",
+  "name": "Zorvexa — منصة التواصل الاجتماعي",
+  "short_name": "Zorvexa",
+  "description": "منصة تواصل اجتماعي عصرية وسريعة للتواصل والمنشورات والمحادثات واستكشاف المحتوى مع دعم كامل للعمل دون اتصال.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": [
+    "social",
+    "communication",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الرئيسية",
+      "short_name": "الخلاصة",
+      "description": "استعراض آخر منشورات الأصدقاء والمجتمع",
+      "url": "/?tab=feed",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "الرسائل",
+      "short_name": "المحادثات",
+      "description": "فتح المحادثات والرسائل الفورية",
+      "url": "/?tab=messages",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "استكشف",
+      "short_name": "الرائج",
+      "description": "استكشاف المواضيع الشائعة والمبدعين",
+      "url": "/?tab=explore",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "الإشعارات",
+      "short_name": "التنبيهات",
+      "description": "الاطلاع على التفاعلات والأنشطة الجديدة",
+      "url": "/?tab=notifications",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}

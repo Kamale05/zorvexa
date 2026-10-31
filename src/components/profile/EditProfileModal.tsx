@@ -85,7 +85,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="relative w-full max-w-lg bg-white dark:bg-[#121215] rounded-2xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 z-10 max-h-[90vh] overflow-y-auto"
+          className="relative w-full max-w-lg bg-white dark:bg-[#070D1E] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-[#1A2846] z-10 max-h-[90vh] overflow-y-auto"
         >
           <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
@@ -236,7 +236,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white dark:text-zinc-900 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white rounded-xl shadow-xs transition"
+                className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-2xl shadow-[0_4px_16px_rgba(37,99,235,0.4)] transition active:scale-95"
               >
                 {t('saveChanges')}
               </button>

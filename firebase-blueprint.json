@@ -150,6 +150,139 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "conversationId", "senderId", "text"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "User administrative roles (owner, admin, moderator)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "assignedBy": { "type": "string" }
+      },
+      "required": ["uid", "role"]
+    },
+    "AdminLog": {
+      "title": "AdminLog",
+      "description": "Administrative actions audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "adminId": { "type": "string" },
+        "adminName": { "type": "string" },
+        "action": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["adminId", "action", "timestamp"]
+    },
+    "PromotionRequest": {
+      "title": "PromotionRequest",
+      "description": "Sponsored post and ad campaign requests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "targetLocation": { "type": "string" },
+        "ageRange": { "type": "string" },
+        "startDate": { "type": "string" },
+        "durationDays": { "type": "number" },
+        "budget": { "type": "number" },
+        "objective": { "type": "string" },
+        "status": { "type": "string" },
+        "rejectionReason": { "type": "string" },
+        "adminId": { "type": "string" },
+        "reviewedAt": { "type": "string" },
+        "impressions": { "type": "number" },
+        "clicks": { "type": "number" },
+        "engagement": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "postId", "authorId", "status", "budget", "createdAt"]
+    },
+    "MarketplaceProduct": {
+      "title": "MarketplaceProduct",
+      "description": "Items listed for sale on Zorvexa Marketplace",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "sellerAvatar": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "condition": { "type": "string" },
+        "location": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactWhatsapp": { "type": "string" },
+        "status": { "type": "string" },
+        "views": { "type": "number" },
+        "savesCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "sellerId", "title", "price", "category", "createdAt"]
+    },
+    "MarketplaceReport": {
+      "title": "MarketplaceReport",
+      "description": "Reports on marketplace products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "productId", "reporterId", "reason", "createdAt"]
+    },
+    "CallSession": {
+      "title": "CallSession",
+      "description": "Voice and Video WebRTC call session metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callerId": { "type": "string" },
+        "callerName": { "type": "string" },
+        "callerAvatar": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "receiverAvatar": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "endedAt": { "type": "string" },
+        "durationSeconds": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "callerId", "receiverId", "type", "status", "createdAt"]
+    },
+    "CallSignal": {
+      "title": "CallSignal",
+      "description": "WebRTC SDP Offer, Answer and ICE candidate signaling",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "type": { "type": "string" },
+        "data": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["callId", "senderId", "type", "data", "createdAt"]
     }
   }
 }

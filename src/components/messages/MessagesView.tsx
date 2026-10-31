@@ -29,6 +29,8 @@ export const MessagesView: React.FC = () => {
     startOrOpenConversationWith,
     setSelectedUserProfile,
     setActiveTab,
+    startAudioCall,
+    startVideoCall,
     language,
     t,
   } = useSocial();
@@ -96,7 +98,7 @@ export const MessagesView: React.FC = () => {
 
   return (
     <div
-      className="bg-white dark:bg-[#121215] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden h-[calc(100vh-8rem)] flex flex-col md:flex-row transition-colors"
+      className="bg-white dark:bg-[#070D1E] rounded-3xl border border-slate-200 dark:border-[#1A2846] shadow-sm overflow-hidden h-[calc(100vh-8rem)] flex flex-col md:flex-row transition-colors"
       id="messages-view"
     >
       {/* Left / Master: Conversation List */}
@@ -271,12 +273,30 @@ export const MessagesView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-1">
+                {/* Voice Call Button */}
+                <button
+                  onClick={() => startAudioCall(otherParticipant)}
+                  className="p-2 text-blue-500 hover:text-white hover:bg-blue-600 rounded-xl transition active:scale-95 bg-blue-500/10"
+                  title={t('voiceCall')}
+                >
+                  <Phone className="w-4 h-4" />
+                </button>
+
+                {/* Video Call Button */}
+                <button
+                  onClick={() => startVideoCall(otherParticipant)}
+                  className="p-2 text-indigo-500 hover:text-white hover:bg-indigo-600 rounded-xl transition active:scale-95 bg-indigo-500/10"
+                  title={t('videoCall')}
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+
                 <button
                   onClick={() => handleUserClick(otherParticipant)}
-                  className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="p-2 text-zinc-400 hover:text-zinc-100 rounded-xl hover:bg-zinc-800 transition"
                   title="الملف الشخصي"
                 >
-                  <Sparkles className="w-4 h-4 text-zinc-400" />
+                  <Sparkles className="w-4 h-4" />
                 </button>
               </div>
             </div>

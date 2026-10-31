@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   User,
   Post,
@@ -12,6 +12,15 @@ import {
   ThemeMode,
   ActiveTab,
   MediaItem,
+  MarketplaceProduct,
+  MarketplaceReport,
+  PromotionRequest,
+  PromotionStatus,
+  AdminRole,
+  AdminLog,
+  CallSession,
+  CallType,
+  CallStatus,
 } from '../types';
 import {
   INITIAL_USERS,
@@ -23,6 +32,9 @@ import {
   INITIAL_CONVERSATIONS,
   INITIAL_MESSAGES,
   INITIAL_HASHTAGS,
+  INITIAL_MARKETPLACE_PRODUCTS,
+  INITIAL_PROMOTIONS,
+  INITIAL_ADMIN_LOGS,
 } from '../data/mockData';
 import { translations } from '../i18n/translations';
 import {
@@ -44,7 +56,25 @@ import {
   saveNotificationToDb,
   saveConversationToDb,
   saveMessageToDb,
+  saveMarketplaceProductToDb,
+  deleteMarketplaceProductFromDb,
+  updateMarketplaceProductStatus,
+  saveMarketplaceReport,
+  subscribeToMarketplaceProducts,
+  savePromotionRequestToDb,
+  updatePromotionStatus,
+  incrementPromotionMetric,
+  subscribeToPromotions,
+  checkUserAdminRole,
+  setAdminRole,
+  removeAdminRole,
+  recordAdminLog,
+  subscribeToAdminLogs,
+  OWNER_EMAIL,
 } from '../services/firebaseService';
+import { webrtcManager, ringtone } from '../services/webrtcService';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 interface ToastMessage {
   id: string;
@@ -71,9 +101,64 @@ interface SocialContextType {
   activeConversationId: string | null;
   isCreatePostModalOpen: boolean;
   isAuthModalOpen: boolean;
+  isLogoutConfirmOpen: boolean;
   authModalView: 'login' | 'register' | 'forgot_password';
   blockedUsers: string[];
   toasts: ToastMessage[];
+
+  // Marketplace
+  marketplaceProducts: MarketplaceProduct[];
+  selectedProduct: MarketplaceProduct | null;
+  isAddProductModalOpen: boolean;
+  setSelectedProduct: (p: MarketplaceProduct | null) => void;
+  setIsAddProductModalOpen: (open: boolean) => void;
+  saveProduct: (productData: Omit<MarketplaceProduct, 'id' | 'createdAt' | 'views' | 'savesCount'>) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
+  toggleProductStatus: (productId: string, status: 'active' | 'sold') => Promise<void>;
+  toggleSaveProduct: (productId: string) => void;
+  reportProduct: (productId: string, reason: string) => Promise<void>;
+
+  // Promotions & Ads
+  promotions: PromotionRequest[];
+  isCreatePromotionOpen: boolean;
+  postToPromote: Post | null;
+  isMyPromotionsOpen: boolean;
+  setIsCreatePromotionOpen: (open: boolean) => void;
+  setPostToPromote: (post: Post | null) => void;
+  setIsMyPromotionsOpen: (open: boolean) => void;
+  createPromotion: (data: Omit<PromotionRequest, 'id' | 'status' | 'impressions' | 'clicks' | 'engagement' | 'createdAt'>) => Promise<void>;
+  updatePromotionStatusAction: (promoId: string, status: PromotionStatus, reason?: string) => Promise<void>;
+  recordAdClick: (promoId: string) => void;
+
+  // Admin & RBAC
+  adminRole: AdminRole | null;
+  adminLogs: AdminLog[];
+  isAdmin: boolean;
+  isOwner: boolean;
+  assignStaffRole: (targetUid: string, email: string, role: 'admin' | 'moderator') => Promise<void>;
+  removeStaffRole: (targetUid: string) => Promise<void>;
+  moderateDeletePost: (postId: string, reason: string) => Promise<void>;
+  moderateDeleteProduct: (productId: string, reason: string) => Promise<void>;
+  toggleUserBan: (targetUserId: string, reason: string) => Promise<void>;
+  recordAdminAction: (action: string, targetType: any, targetId: string, details: string) => Promise<void>;
+
+  // WebRTC Audio & Video Calls
+  activeCall: CallSession | null;
+  incomingCall: CallSession | null;
+  isCallActive: boolean;
+  callType: CallType;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+  isMicMuted: boolean;
+  isVideoDisabled: boolean;
+  startAudioCall: (targetUser: User) => Promise<void>;
+  startVideoCall: (targetUser: User) => Promise<void>;
+  acceptIncomingCall: () => Promise<void>;
+  rejectIncomingCall: () => Promise<void>;
+  endActiveCall: () => Promise<void>;
+  toggleCallAudio: () => void;
+  toggleCallVideo: () => void;
+  switchCallCamera: () => Promise<void>;
 
   // Setters & Navigation
   setActiveTab: (tab: ActiveTab) => void;
@@ -85,7 +170,9 @@ interface SocialContextType {
   setActiveConversationId: (id: string | null) => void;
   setIsCreatePostModalOpen: (open: boolean) => void;
   setIsAuthModalOpen: (open: boolean) => void;
+  setIsLogoutConfirmOpen: (open: boolean) => void;
   setAuthModalView: (view: 'login' | 'register' | 'forgot_password') => void;
+  requestLogout: () => void;
 
   // Actions
   login: (emailOrUsername: string, password?: string) => boolean;
@@ -202,17 +289,68 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   // UI state
-  const [activeTab, setActiveTab] = useState<ActiveTab>('feed');
+  const [activeTab, setActiveTabState] = useState<ActiveTab>('feed');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<User | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState<boolean>(false);
   const [authModalView, setAuthModalView] = useState<'login' | 'register' | 'forgot_password'>('login');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // ==================== MARKETPLACE STATE ====================
+  const [marketplaceProducts, setMarketplaceProducts] = useState<MarketplaceProduct[]>(() => {
+    const saved = localStorage.getItem('zorvexa_marketplace');
+    return saved ? JSON.parse(saved) : INITIAL_MARKETPLACE_PRODUCTS;
+  });
+  const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState<boolean>(false);
+
+  // ==================== PROMOTIONS STATE ====================
+  const [promotions, setPromotions] = useState<PromotionRequest[]>(() => {
+    const saved = localStorage.getItem('zorvexa_promotions');
+    return saved ? JSON.parse(saved) : INITIAL_PROMOTIONS;
+  });
+  const [isCreatePromotionOpen, setIsCreatePromotionOpen] = useState<boolean>(false);
+  const [postToPromote, setPostToPromote] = useState<Post | null>(null);
+  const [isMyPromotionsOpen, setIsMyPromotionsOpen] = useState<boolean>(false);
+
+  // ==================== ADMIN & RBAC STATE ====================
+  // Strictly null by default until authenticated and verified server-side
+  const [adminRole, setAdminRoleState] = useState<AdminRole | null>(null);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>(() => {
+    const saved = localStorage.getItem('zorvexa_admin_logs');
+    return saved ? JSON.parse(saved) : INITIAL_ADMIN_LOGS;
+  });
+
+  const isAdmin = !!adminRole && (adminRole.role === 'owner' || adminRole.role === 'admin' || adminRole.role === 'moderator');
+  const isOwner = !!adminRole && adminRole.role === 'owner';
+
+  // ==================== WEBRTC CALLS STATE ====================
+  const [activeCall, setActiveCall] = useState<CallSession | null>(null);
+  const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
+  const [isCallActive, setIsCallActive] = useState<boolean>(false);
+  const [callType, setCallType] = useState<CallType>('audio');
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  const [isVideoDisabled, setIsVideoDisabled] = useState<boolean>(false);
+
   // Sync to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('zorvexa_marketplace', JSON.stringify(marketplaceProducts));
+  }, [marketplaceProducts]);
+
+  useEffect(() => {
+    localStorage.setItem('zorvexa_promotions', JSON.stringify(promotions));
+  }, [promotions]);
+
+  useEffect(() => {
+    localStorage.setItem('zorvexa_admin_logs', JSON.stringify(adminLogs));
+  }, [adminLogs]);
+
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('zorvexa_current_user', JSON.stringify(currentUser));
@@ -249,7 +387,95 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem('zorvexa_blocked', JSON.stringify(blockedUsers));
   }, [blockedUsers]);
 
-  // Subscribe to Firebase Auth state
+  // WebRTC Callback Handlers
+  useEffect(() => {
+    webrtcManager.onLocalStream = (stream) => {
+      setLocalStream(stream);
+    };
+    webrtcManager.onRemoteStream = (stream) => {
+      setRemoteStream(stream);
+    };
+    webrtcManager.onCallStateChange = (status) => {
+      if (status === 'ended' || status === 'rejected' || status === 'busy') {
+        setIsCallActive(false);
+        setActiveCall(null);
+        setLocalStream(null);
+        setRemoteStream(null);
+        showToast(status === 'busy' ? t('callBusy') : t('callEnded'), 'info');
+      }
+    };
+    webrtcManager.onError = (err) => {
+      showToast(err, 'error');
+      setIsCallActive(false);
+      setActiveCall(null);
+    };
+  }, []);
+
+  // Listen for incoming calls for currentUser
+  useEffect(() => {
+    if (!currentUser) {
+      setAdminRoleState(null);
+      return;
+    }
+
+    // Check user admin role strictly from server token claims / verification
+    checkUserAdminRole(currentUser.id, currentUser.email || '').then((role) => {
+      setAdminRoleState(role);
+    });
+  }, [currentUser]);
+
+  // Query for calls directed to current user
+  useEffect(() => {
+    // Only query Firestore calls if the user is authenticated in Firebase Auth
+    // and is not a guest or fallback user
+    if (
+      !currentUser ||
+      !auth.currentUser ||
+      currentUser.id === 'current_user' ||
+      currentUser.id !== auth.currentUser.uid
+    ) {
+      return;
+    }
+
+    try {
+      const qCalls = query(
+        collection(db, 'calls'),
+        where('receiverId', '==', currentUser.id),
+        where('status', '==', 'calling')
+      );
+
+      const unsubscribeIncomingCalls = onSnapshot(
+        qCalls,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const callDoc = snapshot.docs[0];
+            const call = callDoc.data() as CallSession;
+            if (!isCallActive && (!incomingCall || incomingCall.id !== call.id)) {
+              setIncomingCall(call);
+              setCallType(call.type);
+              ringtone.startRinging();
+            }
+          } else {
+            if (incomingCall) {
+              setIncomingCall(null);
+              ringtone.stop();
+            }
+          }
+        },
+        (err) => {
+          console.warn('[Firebase Calls] Listener notice:', err?.message);
+        }
+      );
+
+      return () => {
+        unsubscribeIncomingCalls();
+      };
+    } catch (e) {
+      console.warn('[Firebase Calls] Error setting up listener:', e);
+    }
+  }, [currentUser, isCallActive]);
+
+  // Subscribe to Firebase Live Streams (Posts, Marketplace, Promotions)
   useEffect(() => {
     const unsubscribeAuth = subscribeToAuth((fbUser) => {
       if (fbUser) {
@@ -263,20 +489,80 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
 
+    const unsubscribeProducts = subscribeToMarketplaceProducts((liveProducts) => {
+      if (liveProducts && liveProducts.length > 0) {
+        setMarketplaceProducts(liveProducts);
+      }
+    });
+
+    const unsubscribePromos = subscribeToPromotions((livePromos) => {
+      if (livePromos && livePromos.length > 0) {
+        setPromotions(livePromos);
+      }
+    });
+
     return () => {
       unsubscribeAuth();
       unsubscribePosts();
+      unsubscribeProducts();
+      unsubscribePromos();
     };
   }, []);
+
+  // Subscribe to Admin Logs ONLY when verified admin/owner is logged in
+  useEffect(() => {
+    if (!isAdmin || !auth.currentUser) {
+      return;
+    }
+
+    const unsubscribeLogs = subscribeToAdminLogs((liveLogs) => {
+      if (liveLogs && liveLogs.length > 0) {
+        setAdminLogs(liveLogs);
+      }
+    });
+
+    return () => {
+      unsubscribeLogs();
+    };
+  }, [isAdmin]);
 
   // Apply Theme and RTL
   useEffect(() => {
     localStorage.setItem('zorvexa_theme', theme);
     const root = document.documentElement;
-    if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    const body = document.body;
+
+    const applyTheme = () => {
+      const isDark =
+        theme === 'dark' ||
+        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+      if (isDark) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+        root.setAttribute('data-theme', 'dark');
+        body.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+        root.setAttribute('data-theme', 'light');
+        body.classList.remove('dark');
+      }
+
+      // Sync mobile and browser system header color
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', isDark ? '#09090b' : '#fafafa');
+      }
+    };
+
+    applyTheme();
+
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applyTheme();
+      mq.addEventListener('change', listener);
+      return () => mq.removeEventListener('change', listener);
     }
   }, [theme]);
 
@@ -285,6 +571,16 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   }, [language]);
+
+  const setActiveTab = (tab: ActiveTab) => {
+    if (tab === 'admin') {
+      if (!isAdmin) {
+        showToast('غير مصرح بالدخول إلى لوحة المدير', 'error');
+        return;
+      }
+    }
+    setActiveTabState(tab);
+  };
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
@@ -408,11 +704,29 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return true;
   };
 
-  const logout = () => {
-    logoutUser().catch(() => {});
+  const requestLogout = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const logout = async () => {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.warn('Firebase logout notice:', err);
+    }
+    // Clear user and session state
     setCurrentUser(null);
+    setAdminRoleState(null);
+    localStorage.removeItem('zorvexa_current_user');
+    setIsLogoutConfirmOpen(false);
+    setActiveTab('feed');
+    setSelectedUserProfile(null);
+    setActiveConversationId(null);
+    setAuthModalView('login');
+    setIsAuthModalOpen(true);
     showToast(t('logoutSuccess'), 'info');
   };
+
 
   const switchDemoUser = (userId: string) => {
     if (userId === CURRENT_USER_DEFAULT.id) {
@@ -994,6 +1308,294 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast(t('addStory') + ' ✨');
   };
 
+  // ==================== MARKETPLACE ACTIONS ====================
+  const saveProduct = async (productData: Omit<MarketplaceProduct, 'id' | 'createdAt' | 'views' | 'savesCount'>) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const newProduct: MarketplaceProduct = {
+      ...productData,
+      id: `prod_${Date.now()}`,
+      views: 1,
+      savesCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+    setMarketplaceProducts((prev) => [newProduct, ...prev]);
+    await saveMarketplaceProductToDb(newProduct);
+    showToast(language === 'ar' ? 'تم نشر إعلانك في المتجر بنجاح!' : 'Product listed successfully!', 'success');
+  };
+
+  const deleteProduct = async (productId: string) => {
+    setMarketplaceProducts((prev) => prev.filter((p) => p.id !== productId));
+    await deleteMarketplaceProductFromDb(productId);
+    showToast(t('deleteListing') + ' ✓', 'info');
+  };
+
+  const toggleProductStatus = async (productId: string, status: 'active' | 'sold') => {
+    setMarketplaceProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, status } : p))
+    );
+    await updateMarketplaceProductStatus(productId, status);
+    showToast(status === 'sold' ? t('markAsSold') : t('markAsAvailable'), 'success');
+  };
+
+  const toggleSaveProduct = (productId: string) => {
+    setMarketplaceProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const isSaved = !p.isSaved;
+          return {
+            ...p,
+            isSaved,
+            savesCount: isSaved ? p.savesCount + 1 : Math.max(0, p.savesCount - 1),
+          };
+        }
+        return p;
+      })
+    );
+    showToast(t('savedProduct'), 'success');
+  };
+
+  const reportProduct = async (productId: string, reason: string) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const targetProduct = marketplaceProducts.find((p) => p.id === productId);
+    const report: MarketplaceReport = {
+      id: `report_${Date.now()}`,
+      productId,
+      productTitle: targetProduct?.title,
+      reporterId: currentUser.id,
+      reporterName: currentUser.name,
+      reason,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    await saveMarketplaceReport(report);
+    showToast(t('productReported'), 'info');
+  };
+
+  // ==================== PROMOTIONS ACTIONS ====================
+  const createPromotion = async (
+    data: Omit<PromotionRequest, 'id' | 'status' | 'impressions' | 'clicks' | 'engagement' | 'createdAt'>
+  ) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const newPromo: PromotionRequest = {
+      ...data,
+      id: `promo_${Date.now()}`,
+      status: 'pending', // Starts pending admin review
+      impressions: 0,
+      clicks: 0,
+      engagement: 0,
+      createdAt: new Date().toISOString(),
+    };
+    setPromotions((prev) => [newPromo, ...prev]);
+    await savePromotionRequestToDb(newPromo);
+    showToast(t('promotionSubmitted'), 'success');
+  };
+
+  const updatePromotionStatusAction = async (
+    promoId: string,
+    status: PromotionStatus,
+    reason?: string
+  ) => {
+    setPromotions((prev) =>
+      prev.map((p) => (p.id === promoId ? { ...p, status, rejectionReason: reason } : p))
+    );
+    await updatePromotionStatus(promoId, status, reason, currentUser?.id);
+    if (adminRole) {
+      recordAdminAction(
+        status === 'approved' || status === 'active' ? 'الموافقة على حملة الترويج' : 'رفض أو تعديل حملة ترويج',
+        'promotion',
+        promoId,
+        `الحالة الجديدة: ${status}${reason ? ' | السبب: ' + reason : ''}`
+      );
+    }
+    showToast(t('adminActionSuccess'), 'success');
+  };
+
+  const recordAdClick = (promoId: string) => {
+    setPromotions((prev) =>
+      prev.map((p) => (p.id === promoId ? { ...p, clicks: p.clicks + 1 } : p))
+    );
+    incrementPromotionMetric(promoId, 'clicks');
+  };
+
+  // ==================== ADMIN & RBAC ACTIONS ====================
+  const recordAdminAction = async (
+    action: string,
+    targetType: any,
+    targetId: string,
+    details: string
+  ) => {
+    if (!currentUser) return;
+    const log: AdminLog = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      adminId: currentUser.id,
+      adminName: currentUser.name + (isOwner ? ' (Owner)' : ' (Admin)'),
+      action,
+      targetType,
+      targetId,
+      details,
+      timestamp: new Date().toISOString(),
+    };
+    setAdminLogs((prev) => [log, ...prev]);
+    await recordAdminLog(log);
+  };
+
+  const assignStaffRole = async (targetUid: string, email: string, role: 'admin' | 'moderator') => {
+    if (!isOwner) {
+      showToast('صلاحية تعيين الأدوار مقتصرة فقط على مالك المنصة', 'error');
+      return;
+    }
+    await setAdminRole(targetUid, email, role, currentUser?.id || 'owner');
+    await recordAdminAction('تعيين رتبة إدارية لموظف', 'user', targetUid, `تعيين رتبة ${role} للمستخدم ${email}`);
+    showToast(t('adminActionSuccess'), 'success');
+  };
+
+  const removeStaffRole = async (targetUid: string) => {
+    if (!isOwner) {
+      showToast('صلاحية تعديل الأدوار مقتصرة فقط على مالك المنصة', 'error');
+      return;
+    }
+    await removeAdminRole(targetUid);
+    await recordAdminAction('سحب الرتبة الإدارية من موظف', 'user', targetUid, 'تم إلغاء صلاحيات الإدارة');
+    showToast(t('adminActionSuccess'), 'info');
+  };
+
+  const moderateDeletePost = async (postId: string, reason: string) => {
+    deletePost(postId);
+    await recordAdminAction('حذف منشور مخالف بواسطة المشرف', 'post', postId, `السبب: ${reason}`);
+    showToast(t('deleteViolatingPost') + ' ✓', 'info');
+  };
+
+  const moderateDeleteProduct = async (productId: string, reason: string) => {
+    await deleteProduct(productId);
+    await recordAdminAction('حذف منتج متجر مخالف بواسطة المشرف', 'product', productId, `السبب: ${reason}`);
+    showToast(t('deleteViolatingProduct') + ' ✓', 'info');
+  };
+
+  const toggleUserBan = async (targetUserId: string, reason: string) => {
+    const isBanned = blockedUsers.includes(targetUserId);
+    if (isBanned) {
+      unblockUser(targetUserId);
+      await recordAdminAction('إلغاء حظر حساب مستخدم', 'user', targetUserId, `إلغاء الحظر`);
+      showToast(t('userUnblocked'), 'success');
+    } else {
+      blockUser(targetUserId);
+      await recordAdminAction('حظر حساب مستخدم مخالف', 'user', targetUserId, `السبب: ${reason}`);
+      showToast(t('userBlocked'), 'info');
+    }
+  };
+
+  // ==================== WEBRTC CALL ACTIONS ====================
+  const startAudioCall = async (targetUser: User) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    try {
+      setCallType('audio');
+      setIsCallActive(true);
+      const sessionData: CallSession = {
+        id: `call_${Date.now()}`,
+        callerId: currentUser.id,
+        callerName: currentUser.name,
+        callerAvatar: currentUser.avatarUrl,
+        receiverId: targetUser.id,
+        receiverName: targetUser.name,
+        receiverAvatar: targetUser.avatarUrl,
+        type: 'audio',
+        status: 'calling',
+        createdAt: new Date().toISOString(),
+      };
+      setActiveCall(sessionData);
+      await webrtcManager.startCall(currentUser, targetUser, 'audio');
+    } catch (e: any) {
+      setIsCallActive(false);
+      setActiveCall(null);
+    }
+  };
+
+  const startVideoCall = async (targetUser: User) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    try {
+      setCallType('video');
+      setIsCallActive(true);
+      const sessionData: CallSession = {
+        id: `call_${Date.now()}`,
+        callerId: currentUser.id,
+        callerName: currentUser.name,
+        callerAvatar: currentUser.avatarUrl,
+        receiverId: targetUser.id,
+        receiverName: targetUser.name,
+        receiverAvatar: targetUser.avatarUrl,
+        type: 'video',
+        status: 'calling',
+        createdAt: new Date().toISOString(),
+      };
+      setActiveCall(sessionData);
+      await webrtcManager.startCall(currentUser, targetUser, 'video');
+    } catch (e: any) {
+      setIsCallActive(false);
+      setActiveCall(null);
+    }
+  };
+
+  const acceptIncomingCall = async () => {
+    if (!incomingCall || !currentUser) return;
+    try {
+      const ongoingCall = { ...incomingCall, status: 'ongoing' as CallStatus };
+      setActiveCall(ongoingCall);
+      setIsCallActive(true);
+      setCallType(incomingCall.type);
+      setIncomingCall(null);
+      await webrtcManager.answerCall(ongoingCall, currentUser);
+    } catch (e) {
+      setIsCallActive(false);
+      setActiveCall(null);
+    }
+  };
+
+  const rejectIncomingCall = async () => {
+    if (!incomingCall) return;
+    const callId = incomingCall.id;
+    setIncomingCall(null);
+    await webrtcManager.rejectCall(callId);
+  };
+
+  const endActiveCall = async () => {
+    setIsCallActive(false);
+    setActiveCall(null);
+    setLocalStream(null);
+    setRemoteStream(null);
+    await webrtcManager.endCall();
+  };
+
+  const toggleCallAudio = () => {
+    const next = !isMicMuted;
+    setIsMicMuted(next);
+    webrtcManager.toggleAudio(!next);
+  };
+
+  const toggleCallVideo = () => {
+    const next = !isVideoDisabled;
+    setIsVideoDisabled(next);
+    webrtcManager.toggleVideo(!next);
+  };
+
+  const switchCallCamera = async () => {
+    await webrtcManager.switchCamera();
+  };
+
   return (
     <SocialContext.Provider
       value={{
@@ -1019,6 +1621,60 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         blockedUsers,
         toasts,
 
+        // Marketplace
+        marketplaceProducts,
+        selectedProduct,
+        isAddProductModalOpen,
+        setSelectedProduct,
+        setIsAddProductModalOpen,
+        saveProduct,
+        deleteProduct,
+        toggleProductStatus,
+        toggleSaveProduct,
+        reportProduct,
+
+        // Promotions
+        promotions,
+        isCreatePromotionOpen,
+        postToPromote,
+        isMyPromotionsOpen,
+        setIsCreatePromotionOpen,
+        setPostToPromote,
+        setIsMyPromotionsOpen,
+        createPromotion,
+        updatePromotionStatusAction,
+        recordAdClick,
+
+        // Admin
+        adminRole,
+        adminLogs,
+        isAdmin,
+        isOwner,
+        assignStaffRole,
+        removeStaffRole,
+        moderateDeletePost,
+        moderateDeleteProduct,
+        toggleUserBan,
+        recordAdminAction,
+
+        // WebRTC Calls
+        activeCall,
+        incomingCall,
+        isCallActive,
+        callType,
+        localStream,
+        remoteStream,
+        isMicMuted,
+        isVideoDisabled,
+        startAudioCall,
+        startVideoCall,
+        acceptIncomingCall,
+        rejectIncomingCall,
+        endActiveCall,
+        toggleCallAudio,
+        toggleCallVideo,
+        switchCallCamera,
+
         setActiveTab,
         setLanguage,
         setTheme,
@@ -1028,7 +1684,10 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveConversationId,
         setIsCreatePostModalOpen,
         setIsAuthModalOpen,
+        isLogoutConfirmOpen,
+        setIsLogoutConfirmOpen,
         setAuthModalView,
+        requestLogout,
 
         login,
         register,

@@ -1,19 +1,54 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import firebaseConfigData from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA-2fPwt-vuC_lyRWz_7BMmAh2sfSmL-WI",
-  authDomain: "zorvexa-68367.firebaseapp.com",
-  projectId: "zorvexa-68367",
-  storageBucket: "zorvexa-68367.firebasestorage.app",
-  messagingSenderId: "755032805461",
-  appId: "1:755032805461:web:59dc120ebf94c81d1144dc"
+  apiKey: firebaseConfigData.apiKey,
+  authDomain: firebaseConfigData.authDomain,
+  projectId: firebaseConfigData.projectId,
+  storageBucket: firebaseConfigData.storageBucket,
+  messagingSenderId: firebaseConfigData.messagingSenderId,
+  appId: firebaseConfigData.appId,
 };
 
-export const app = !getApps().length
-  ? initializeApp(firebaseConfig)
-  : getApp();
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Initialize Firebase Storage
+export const storage = getStorage(app);
+
+// Initialize Firestore with robust multi-tab offline persistence
+function createFirestoreInstance() {
+  const databaseId =
+    firebaseConfigData.firestoreDatabaseId && firebaseConfigData.firestoreDatabaseId !== '(default)'
+      ? firebaseConfigData.firestoreDatabaseId
+      : undefined;
+
+  try {
+    if (typeof window !== 'undefined' && 'indexedDB' in window) {
+      if (databaseId) {
+        return initializeFirestore(app, {
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        }, databaseId);
+      }
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    }
+  } catch (err) {
+    console.warn('[Firestore] Offline persistence initialization warning, falling back to standard:', err);
+  }
+
+  return databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+}
+
+export const db = createFirestoreInstance();
+

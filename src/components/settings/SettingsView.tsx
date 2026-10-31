@@ -5,54 +5,65 @@ import {
   Shield,
   Palette,
   Globe,
-  Ban,
-  Trash2,
-  Lock,
-  Moon,
+  Bell,
+  HelpCircle,
+  Info,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
   Sun,
+  Moon,
   Laptop,
   Check,
-  LogOut,
-  Bell,
-  Eye,
-  EyeOff,
+  Smartphone,
   Sparkles,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
-import { ConfirmationModal } from '../common/ConfirmationModal';
-import { INITIAL_USERS } from '../../data/mockData';
+import { Logo } from '../common/Logo';
+import { useAndroidInstall } from '../../hooks/useAndroidInstall';
+import { AndroidInstallModal } from '../common/AndroidInstallModal';
 
 export const SettingsView: React.FC = () => {
   const {
     currentUser,
     updateCurrentUser,
     logout,
+    requestLogout,
     theme,
     setTheme,
     language,
     setLanguage,
-    blockedUsers,
-    unblockUser,
-    users,
-    switchDemoUser,
+    setActiveTab,
     showToast,
     t,
   } = useSocial();
 
-  const [activeSection, setActiveSection] = useState<'account' | 'privacy' | 'appearance' | 'language' | 'blocked' | 'demo'>('account');
+  // Active view: 'main' list or sub-screen
+  const [activeSubView, setActiveSubView] = useState<
+    'main' | 'account' | 'privacy' | 'notifications' | 'appearance' | 'language' | 'help' | 'about'
+  >('main');
 
-  // Password state
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const { isInstallable, isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } =
+    useAndroidInstall();
 
   // Account edit fields
   const [name, setName] = useState(currentUser?.name || '');
   const [username, setUsername] = useState(currentUser?.username || '');
   const [email, setEmail] = useState(currentUser?.email || '');
-  const [isPrivate, setIsPrivate] = useState(currentUser?.isPrivate || false);
+  const [bio, setBio] = useState(currentUser?.bio || '');
 
-  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  // Privacy toggles
+  const [isPrivate, setIsPrivate] = useState(currentUser?.isPrivate || false);
+  const [allowTags, setAllowTags] = useState(true);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
+
+  // Notification toggles
+  const [notifLikes, setNotifLikes] = useState(true);
+  const [notifComments, setNotifComments] = useState(true);
+  const [notifFollows, setNotifFollows] = useState(true);
+  const [notifMessages, setNotifMessages] = useState(true);
 
   const handleUpdateAccount = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,216 +71,231 @@ export const SettingsView: React.FC = () => {
       name,
       username: username.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase(),
       email,
-      isPrivate,
+      bio,
     });
+    showToast('تم حفظ التغييرات بنجاح!');
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 6) {
-      showToast('يجب أن تكون كلمة المرور 6 أحرف على الأقل', 'error');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      showToast('كلمات المرور غير متطابقة', 'error');
-      return;
-    }
-    showToast('تم تغيير كلمة المرور بنجاح!');
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+  const getThemeLabel = (mode: string) => {
+    if (mode === 'dark') return 'الوضع الداكن';
+    if (mode === 'light') return 'الوضع الفاتح';
+    return 'تلقائي (النظام)';
   };
 
-  const blockedUsersList = INITIAL_USERS.filter((u) => blockedUsers.includes(u.id));
+  const isRtl = language === 'ar';
+  const BackChevron = isRtl ? ChevronRight : ChevronLeft;
+  const ForwardChevron = isRtl ? ChevronLeft : ChevronRight;
 
   return (
     <div
-      className="bg-white dark:bg-[#121215] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs overflow-hidden flex flex-col md:flex-row transition-colors"
+      className="bg-white dark:bg-[#070D1E] rounded-3xl border border-slate-200 dark:border-[#1A2846] shadow-sm overflow-hidden transition-colors max-w-xl mx-auto"
       id="settings-view"
     >
-      {/* Settings Navigation Menu */}
-      <div className="w-full md:w-60 lg:w-64 border-e border-zinc-200 dark:border-zinc-800 p-3.5 shrink-0 space-y-1 bg-zinc-50/50 dark:bg-zinc-950/20">
-        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 px-3 py-2">
-          {t('settings')}
-        </h2>
+      {/* ----------------- SUB-VIEW: APPEARANCE (SCREEN 8) ----------------- */}
+      {activeSubView === 'appearance' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              المظهر
+            </h2>
+          </div>
 
-        <button
-          onClick={() => setActiveSection('account')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'account'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <UserIcon className="w-3.5 h-3.5" />
-          <span>{t('accountSettings')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('privacy')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'privacy'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>{t('privacyAndSecurity')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('appearance')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'appearance'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Palette className="w-3.5 h-3.5" />
-          <span>{t('appearance')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('language')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'language'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          <span>{t('languageAndRegion')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('blocked')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'blocked'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Ban className="w-3.5 h-3.5" />
-          <span>{t('blockedUsers')}</span>
-          {blockedUsers.length > 0 && (
-            <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-bold">
-              {blockedUsers.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveSection('demo')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            activeSection === 'demo'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-          <span>حسابات تجريبية سريعة</span>
-        </button>
-
-        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>{t('logout')}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Settings Content Detail Panel */}
-      <div className="flex-1 p-5 sm:p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
-        {/* Account Section */}
-        {activeSection === 'account' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {t('accountSettings')}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                قم بتحديث اسمك وبريدك الإلكتروني واسم المستخدم الخاص بك في Zorvexa
-              </p>
-            </div>
-
-            <form onSubmit={handleUpdateAccount} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  {t('name')}
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  {t('username')}
-                </label>
-                <div className="relative">
-                  <span className="absolute start-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
-                    @
-                  </span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full ps-7 pe-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
-                  />
+          {/* 3 Selectable Cards matching Screen 8 */}
+          <div className="space-y-3.5">
+            {/* 1. Light Mode Card */}
+            <div
+              onClick={() => setTheme('light')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                theme === 'light'
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-[0_0_15px_rgba(59,130,246,0.3)] ring-1 ring-blue-500'
+                  : 'border-slate-200 dark:border-[#1A2846] bg-slate-50 dark:bg-[#0D162B] hover:border-slate-400 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                  <Sun className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">فاتح</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">واجهة بيضاء</p>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  {t('email')}
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white dark:text-zinc-900 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white rounded-xl shadow-xs transition"
+              {/* Radio Indicator */}
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  theme === 'light'
+                    ? 'border-blue-500 bg-blue-600 text-white'
+                    : 'border-slate-400 dark:border-slate-600'
+                }`}
               >
-                {t('saveChanges')}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Privacy & Security Section */}
-        {activeSection === 'privacy' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {t('privacyAndSecurity')}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                إدارة خصوصية الحساب، المنشورات، وتغيير كلمة المرور المشفرة
-              </p>
+                {theme === 'light' && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
             </div>
 
-            {/* Private account toggle */}
-            <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4">
-              <div>
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                  {t('privateAccount')}
-                </h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {t('privateAccountDesc')}
-                </p>
+            {/* 2. Dark Mode Card (Glowing active border in reference) */}
+            <div
+              onClick={() => setTheme('dark')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                theme === 'dark'
+                  ? 'border-blue-500 bg-[#0B1428] shadow-[0_0_20px_rgba(59,130,246,0.4)] ring-1 ring-blue-500'
+                  : 'border-slate-200 dark:border-[#1A2846] bg-slate-50 dark:bg-[#0D162B] hover:border-slate-400 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">داكن</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">واجهة سوداء</p>
+                </div>
               </div>
 
+              {/* Radio Indicator */}
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  theme === 'dark'
+                    ? 'border-blue-500 bg-blue-600 text-white'
+                    : 'border-slate-400 dark:border-slate-600'
+                }`}
+              >
+                {theme === 'dark' && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
+            </div>
+
+            {/* 3. System Mode Card */}
+            <div
+              onClick={() => setTheme('system')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                theme === 'system'
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-[0_0_15px_rgba(59,130,246,0.3)] ring-1 ring-blue-500'
+                  : 'border-slate-200 dark:border-[#1A2846] bg-slate-50 dark:bg-[#0D162B] hover:border-slate-400 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-slate-500/20 text-slate-400 flex items-center justify-center">
+                  <Laptop className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">النظام</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">حسب إعدادات الهاتف</p>
+                </div>
+              </div>
+
+              {/* Radio Indicator */}
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  theme === 'system'
+                    ? 'border-blue-500 bg-blue-600 text-white'
+                    : 'border-slate-400 dark:border-slate-600'
+                }`}
+              >
+                {theme === 'system' && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center pt-2">
+            سيتم تطبيق المظهر على جميع صفحات التطبيق
+          </p>
+        </div>
+      )}
+
+      {/* ----------------- SUB-VIEW: ACCOUNT ----------------- */}
+      {activeSubView === 'account' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              إعدادات الحساب
+            </h2>
+          </div>
+
+          <form onSubmit={handleUpdateAccount} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-1">الاسم الكامل</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-1">اسم المستخدم</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-1">البريد الإلكتروني</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-1">النبذة الشخصية (Bio)</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={2}
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition"
+            >
+              حفظ التغييرات
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ----------------- SUB-VIEW: PRIVACY ----------------- */}
+      {activeSubView === 'privacy' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              الخصوصية والأمان
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">حساب خاص</h4>
+                <p className="text-[11px] text-slate-400">فقط المتابعون الذين توافق عليهم يمكنهم رؤية منشوراتك</p>
+              </div>
               <input
                 type="checkbox"
                 checked={isPrivate}
@@ -277,330 +303,378 @@ export const SettingsView: React.FC = () => {
                   setIsPrivate(e.target.checked);
                   updateCurrentUser({ isPrivate: e.target.checked });
                 }}
-                className="w-4 h-4 accent-zinc-900 dark:accent-zinc-100 rounded cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600"
               />
             </div>
 
-            {/* Change password */}
-            <form onSubmit={handlePasswordChange} className="space-y-3.5 pt-2">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-zinc-400" />
-                <span>تغيير كلمة المرور</span>
-              </h4>
-
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  كلمة المرور الحالية
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none"
-                />
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">إظهار حالة النشاط</h4>
+                <p className="text-[11px] text-slate-400">إظهار الدائرة الخضراء عندما تكون متصلاً</p>
               </div>
+              <input
+                type="checkbox"
+                checked={showOnlineStatus}
+                onChange={(e) => setShowOnlineStatus(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
 
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  كلمة المرور الجديدة
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none"
-                />
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">السماح بالإشارات في المنشورات</h4>
+                <p className="text-[11px] text-slate-400">تمكين أصدقائك من الإشارة إليك في المنشورات</p>
               </div>
+              <input
+                type="checkbox"
+                checked={allowTags}
+                onChange={(e) => setAllowTags(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* ----------------- SUB-VIEW: NOTIFICATIONS ----------------- */}
+      {activeSubView === 'notifications' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              الإشعارات
+            </h2>
+          </div>
+
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">إشعارات الإعجابات</span>
+              <input
+                type="checkbox"
+                checked={notifLikes}
+                onChange={(e) => setNotifLikes(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">إشعارات التعليقات</span>
+              <input
+                type="checkbox"
+                checked={notifComments}
+                onChange={(e) => setNotifComments(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">إشعارات المتابعين الجدد</span>
+              <input
+                type="checkbox"
+                checked={notifFollows}
+                onChange={(e) => setNotifFollows(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">إشعارات الرسائل الفورية</span>
+              <input
+                type="checkbox"
+                checked={notifMessages}
+                onChange={(e) => setNotifMessages(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- SUB-VIEW: LANGUAGE ----------------- */}
+      {activeSubView === 'language' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              اللغة (Language)
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            <div
+              onClick={() => setLanguage('ar')}
+              className={`p-3.5 rounded-2xl border cursor-pointer flex items-center justify-between transition ${
+                language === 'ar'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-[#0D162B] ring-1 ring-blue-500'
+                  : 'border-slate-200 dark:border-[#1A2846] bg-slate-50 dark:bg-[#0D162B]'
+              }`}
+            >
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  {t('confirmPassword')}
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none"
-                />
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">العربية (Arabic)</h4>
+                <p className="text-[11px] text-slate-400">اللغة الافتراضية للتطبيق</p>
+              </div>
+              {language === 'ar' && <Check className="w-4 h-4 text-blue-500" />}
+            </div>
+
+            <div
+              onClick={() => setLanguage('en')}
+              className={`p-3.5 rounded-2xl border cursor-pointer flex items-center justify-between transition ${
+                language === 'en'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-[#0D162B] ring-1 ring-blue-500'
+                  : 'border-slate-200 dark:border-[#1A2846] bg-slate-50 dark:bg-[#0D162B]'
+              }`}
+            >
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">English (الإنجليزية)</h4>
+                <p className="text-[11px] text-slate-400">English Interface</p>
+              </div>
+              {language === 'en' && <Check className="w-4 h-4 text-blue-500" />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- SUB-VIEW: ABOUT APP ----------------- */}
+      {activeSubView === 'about' && (
+        <div className="p-5 sm:p-6 space-y-6 text-center">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846] text-start">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              حول التطبيق
+            </h2>
+          </div>
+
+          <div className="flex flex-col items-center py-4">
+            <Logo size="xl" showText={true} />
+            <span className="text-xs text-slate-400 mt-2">الإصدار 2.4.0 (Build 2026)</span>
+            <p className="text-xs text-slate-300 max-w-sm mt-4 leading-relaxed">
+              منصة Zorvexa الاجتماعية المتميزة — تواصل، شارك، واكتشف عالماً مليئاً بالإبداع والأصدقاء. مدعومة بالكامل بنظام سحابي فائق الأمان عبر Firebase وتصميم متطور للأندرويد.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846] text-xs text-slate-400 space-y-2">
+            <div className="flex justify-between">
+              <span>قاعدة البيانات</span>
+              <span className="text-emerald-400 font-semibold">Firebase Firestore متصلة</span>
+            </div>
+            <div className="flex justify-between">
+              <span>تخزين الصور</span>
+              <span className="text-blue-400 font-semibold">Firebase Storage</span>
+            </div>
+            <div className="flex justify-between">
+              <span>بيئة التشغيل</span>
+              <span className="text-slate-200 font-semibold">Android & Web PWA</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- SUB-VIEW: HELP ----------------- */}
+      {activeSubView === 'help' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <button
+              onClick={() => setActiveSubView('main')}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+            >
+              <BackChevron className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              المساعدة والدعم
+            </h2>
+          </div>
+
+          <div className="space-y-3 text-xs text-slate-300">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <h4 className="font-bold text-slate-900 dark:text-white mb-1">كيف أرفع الصور من هاتفي؟</h4>
+              <p className="text-slate-400 leading-relaxed">
+                اضغط على زر (+) في شريط التنقل السفلي أو من أعلى الصفحة، ثم اضغط على "إضافة صور" لاختيار صور من معرض هاتفك مباشرة ورفعها إلى السحابة.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0D162B] border border-slate-200 dark:border-[#1A2846]">
+              <h4 className="font-bold text-slate-900 dark:text-white mb-1">كيف أغيّر مظهر التطبيق؟</h4>
+              <p className="text-slate-400 leading-relaxed">
+                من قائمة الإعدادات اضغط على "المظهر" واختر بين الوضع الفاتح، الداكن، أو التلقائي حسب نظام هاتفك.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- MAIN SETTINGS VIEW (SCREEN 7) ----------------- */}
+      {activeSubView === 'main' && (
+        <div className="p-5 sm:p-6 space-y-6">
+          {/* Header matching Screen 7 */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#1A2846]">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab('feed')}
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D162B] text-slate-400 hover:text-white transition"
+              >
+                <BackChevron className="w-5 h-5" />
+              </button>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                الإعدادات
+              </h2>
+            </div>
+          </div>
+
+          {/* Settings List matching Screen 7 */}
+          <div className="divide-y divide-slate-100 dark:divide-[#1A2846]">
+            {/* 1. الحساب */}
+            <div
+              onClick={() => setActiveSubView('account')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-500 flex items-center justify-center">
+                  <UserIcon className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  الحساب
+                </span>
+              </div>
+              <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+            </div>
+
+            {/* 2. الخصوصية والأمان */}
+            <div
+              onClick={() => setActiveSubView('privacy')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600/10 text-indigo-500 flex items-center justify-center">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  الخصوصية والأمان
+                </span>
+              </div>
+              <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+            </div>
+
+            {/* 3. الإشعارات */}
+            <div
+              onClick={() => setActiveSubView('notifications')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-600/10 text-amber-500 flex items-center justify-center">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  الإشعارات
+                </span>
+              </div>
+              <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+            </div>
+
+            {/* 4. المظهر (with sub-badge "الوضع الداكن") */}
+            <div
+              onClick={() => setActiveSubView('appearance')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-600/10 text-purple-400 flex items-center justify-center">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  المظهر
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="show-pass"
-                  checked={showPassword}
-                  onChange={(e) => setShowPassword(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-zinc-900 dark:accent-zinc-100"
-                />
-                <label htmlFor="show-pass" className="text-xs text-zinc-500 cursor-pointer">
-                  إظهار كلمات المرور
-                </label>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#0D162B] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#1A2846]">
+                  {getThemeLabel(theme)}
+                </span>
+                <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+              </div>
+            </div>
+
+            {/* 5. اللغة (with sub-badge "العربية") */}
+            <div
+              onClick={() => setActiveSubView('language')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-500 flex items-center justify-center">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  اللغة
+                </span>
               </div>
 
-              <button
-                type="submit"
-                disabled={!newPassword || !confirmPassword}
-                className="px-4 py-2 text-xs font-semibold text-white dark:text-zinc-900 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white disabled:opacity-40 rounded-xl shadow-xs transition"
-              >
-                تحديث كلمة المرور
-              </button>
-            </form>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#0D162B] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#1A2846]">
+                  {language === 'ar' ? 'العربية' : 'English'}
+                </span>
+                <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+              </div>
+            </div>
 
-            {/* Danger Zone */}
-            <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-              <h4 className="text-xs font-bold text-rose-600 dark:text-rose-400">
-                {t('dangerZone')}
-              </h4>
-              <p className="text-[11px] text-zinc-400">
-                سيؤدي حذف الحساب إلى مسح كافة بياناتك ومنشوراتك بشكل دائم ولا يمكن استعادتها.
-              </p>
-              <button
-                onClick={() => setIsDeleteAccountModalOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 rounded-xl transition"
-              >
-                {t('deleteAccount')}
-              </button>
+            {/* 6. المساعدة والدعم */}
+            <div
+              onClick={() => setActiveSubView('help')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-600/10 text-sky-400 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  المساعدة والدعم
+                </span>
+              </div>
+              <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+            </div>
+
+            {/* 7. حول التطبيق */}
+            <div
+              onClick={() => setActiveSubView('about')}
+              className="py-3.5 flex items-center justify-between cursor-pointer group hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-600/10 text-teal-400 flex items-center justify-center">
+                  <Info className="w-5 h-5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  حول التطبيق
+                </span>
+              </div>
+              <ForwardChevron className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
             </div>
           </div>
-        )}
 
-        {/* Appearance Section */}
-        {activeSection === 'appearance' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {t('appearance')}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                اختر مظهر Zorvexa المفضل لديك لتجربة تصفح مريحة للعينين
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div
-                onClick={() => setTheme('light')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col items-center gap-2 text-center ${
-                  theme === 'light'
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/80 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
-                  <Sun className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-medium">{t('lightMode')}</span>
-              </div>
-
-              <div
-                onClick={() => setTheme('dark')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col items-center gap-2 text-center ${
-                  theme === 'dark'
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/80 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-300 flex items-center justify-center">
-                  <Moon className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-medium">{t('darkMode')}</span>
-              </div>
-
-              <div
-                onClick={() => setTheme('system')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col items-center gap-2 text-center ${
-                  theme === 'system'
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/80 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-center justify-center">
-                  <Laptop className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-medium">{t('systemMode')}</span>
-              </div>
-            </div>
+          {/* Red Outlined Logout Card Button matching Screen 7 */}
+          <div className="pt-4">
+            <button
+              onClick={requestLogout}
+              className="w-full py-3.5 px-4 rounded-2xl border-2 border-rose-600/80 hover:border-rose-500 bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 hover:text-rose-400 font-bold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition active:scale-98 shadow-sm"
+              id="settings-logout-btn"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>تسجيل الخروج</span>
+            </button>
           </div>
-        )}
-
-        {/* Language Section */}
-        {activeSection === 'language' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {t('languageAndRegion')}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                تغيير لغة الواجهة واتجاه العرض (RTL / LTR)
-              </p>
-            </div>
-
-            <div className="space-y-2.5">
-              <div
-                onClick={() => setLanguage('ar')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${
-                  language === 'ar'
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/70 dark:bg-zinc-800/60'
-                    : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">🇸🇦</span>
-                  <div>
-                    <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                      العربية (Arabic)
-                    </h4>
-                    <p className="text-[11px] text-zinc-400">واجهة كاملة باللغة العربية مع دعم RTL</p>
-                  </div>
-                </div>
-                {language === 'ar' && <Check className="w-4 h-4 text-emerald-500" />}
-              </div>
-
-              <div
-                onClick={() => setLanguage('en')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${
-                  language === 'en'
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/70 dark:bg-zinc-800/60'
-                    : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">🌐</span>
-                  <div>
-                    <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                      English (الإنجليزية)
-                    </h4>
-                    <p className="text-[11px] text-zinc-400">Full English interface with LTR layout</p>
-                  </div>
-                </div>
-                {language === 'en' && <Check className="w-4 h-4 text-emerald-500" />}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Blocked Users Section */}
-        {activeSection === 'blocked' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {t('blockedUsers')}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                المستخدمون المحظورون لا يمكنهم رؤية منشوراتك أو إرسال رسائل لك
-              </p>
-            </div>
-
-            {blockedUsers.length === 0 ? (
-              <div className="p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl text-zinc-400 text-xs font-medium border border-zinc-200 dark:border-zinc-800">
-                {t('noBlockedUsers')}
-              </div>
-            ) : (
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {blockedUsersList.map((bu) => (
-                  <div key={bu.id} className="py-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={bu.avatarUrl}
-                        alt={bu.name}
-                        className="w-8 h-8 rounded-xl object-cover border border-zinc-200 dark:border-zinc-700"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div>
-                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                          {bu.name}
-                        </h5>
-                        <p className="text-[10px] text-zinc-400">@{bu.username}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => unblockUser(bu.id)}
-                      className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-                    >
-                      {t('unblock')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Demo User Switcher Section */}
-        {activeSection === 'demo' && (
-          <div className="space-y-5 max-w-lg">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-zinc-400" />
-                <span>تبديل الحساب التجريبي السريع</span>
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                يمكنك التبديل بين أي من المبدعين وصناع المحتوى لاختبار التطبيق من وجهات نظر متعددة
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => switchDemoUser(u.id)}
-                  className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between ${
-                    currentUser?.id === u.id
-                      ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/70 dark:bg-zinc-800/60'
-                      : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/40'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={u.avatarUrl}
-                      alt={u.name}
-                      className="w-9 h-9 rounded-xl object-cover border border-zinc-200 dark:border-zinc-700"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                          {u.name}
-                        </h4>
-                        {u.isVerified && (
-                          <Sparkles className="w-3 h-3 text-zinc-400" />
-                        )}
-                      </div>
-                      <p className="text-[10px] text-zinc-400">@{u.username}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-1">{u.bio}</p>
-                    </div>
-                  </div>
-
-                  {currentUser?.id === u.id ? (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg">
-                      الحساب الحالي
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-zinc-400 font-medium">تبديل</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Account Confirmation */}
-      <ConfirmationModal
-        isOpen={isDeleteAccountModalOpen}
-        title={t('deleteAccount')}
-        message={t('deleteAccountConfirm')}
-        confirmLabel={t('deleteAccount')}
-        isDestructive={true}
-        onConfirm={() => {
-          logout();
-          setIsDeleteAccountModalOpen(false);
-        }}
-        onClose={() => setIsDeleteAccountModalOpen(false)}
-      />
+        </div>
+      )}
     </div>
   );
 };

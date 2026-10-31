@@ -79,13 +79,13 @@ export const ExploreView: React.FC = () => {
     <div className="space-y-5" id="explore-view">
       {/* Search Input on Mobile/Header */}
       <div className="relative block sm:hidden">
-        <Search className="w-4 h-4 text-zinc-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t('search')}
-          className="w-full ps-10 pe-4 py-2 text-xs bg-white dark:bg-[#121215] border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+          className="w-full ps-10 pe-4 py-2 text-xs bg-white dark:bg-[#070D1E] border border-slate-200 dark:border-[#1A2846] rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
         />
       </div>
 
@@ -97,8 +97,8 @@ export const ExploreView: React.FC = () => {
             onClick={() => setSelectedCategory(cat.id)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
               selectedCategory === cat.id
-                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                : 'bg-white dark:bg-[#121215] text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                ? 'bg-blue-600 text-white shadow-[0_2px_10px_rgba(37,99,235,0.4)]'
+                : 'bg-white dark:bg-[#070D1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#1A2846] hover:bg-slate-100 dark:hover:bg-[#0D162B]'
             }`}
           >
             {cat.label}

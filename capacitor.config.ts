@@ -1,10 +1,28 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.zorvexa.app',
+  appId: 'app.zorvexa.social',
   appName: 'Zorvexa',
   webDir: 'dist',
-  bundledWebRuntime: false
+  server: {
+    androidScheme: 'https',
+    cleartext: true
+  },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      backgroundColor: '#09090b',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false
+    }
+  }
 };
 
 export default config;

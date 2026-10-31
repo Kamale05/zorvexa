@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zorvexa</string>
+    <string name="title_activity_main">Zorvexa</string>
+    <string name="package_name">app.zorvexa.social</string>
+    <string name="custom_url_scheme">app.zorvexa.social</string>
+</resources>
